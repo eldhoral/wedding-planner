@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
+  
+  --color-wedding-bg: #fdfbf7;
+  --color-wedding-card: #ffffff;
+  --color-wedding-text: #2c2a29;
+  --color-wedding-muted: #8c857f;
+  --color-wedding-accent: #b59f84; /* Soft gold/taupe */
+  --color-wedding-rose: #d4a5a5; /* Blush pink */
+  --color-wedding-sage: #9baba0; /* Sage green */
+}
+
+body {
+  background-color: var(--color-wedding-bg);
+  color: var(--color-wedding-text);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6, .font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e0d8;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d4cec4;
+}

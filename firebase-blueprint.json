@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the wedding planner app.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "weddingId": { "type": "string", "description": "ID of the shared wedding plan" }
+      },
+      "required": ["name", "email"]
+    },
+    "Wedding": {
+      "title": "Wedding",
+      "description": "The shared wedding plan.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "totalBudgetGoal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "partnerId": { "type": "string" }
+      },
+      "required": ["name", "totalBudgetGoal", "createdAt", "createdBy"]
+    },
+    "BudgetItem": {
+      "title": "BudgetItem",
+      "description": "An item or service needed for the wedding.",
+      "type": "object",
+      "properties": {
+        "weddingId": { "type": "string" },
+        "category": { "type": "string", "enum": ["venue", "catering", "attire", "photography", "decor", "entertainment", "other"] },
+        "name": { "type": "string" },
+        "estimatedCost": { "type": "number" },
+        "actualCost": { "type": "number" },
+        "status": { "type": "string", "enum": ["planned", "booked", "paid"] },
+        "vendorId": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["weddingId", "category", "name", "estimatedCost", "status"]
+    },
+    "Saving": {
+      "title": "Saving",
+      "description": "A record of money saved for the wedding.",
+      "type": "object",
+      "properties": {
+        "weddingId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" },
+        "depositedBy": { "type": "string" }
+      },
+      "required": ["weddingId", "amount", "date", "depositedBy"]
+    },
+    "Vendor": {
+      "title": "Vendor",
+      "description": "A vendor providing services for the wedding.",
+      "type": "object",
+      "properties": {
+        "weddingId": { "type": "string" },
+        "category": { "type": "string" },
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["contacted", "meeting_set", "booked", "rejected"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["weddingId", "category", "name", "status"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "An important date or appointment for the wedding.",
+      "type": "object",
+      "properties": {
+        "weddingId": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["appointment", "milestone", "task", "wedding_day"] },
+        "description": { "type": "string" }
+      },
+      "required": ["weddingId", "title", "date", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "/weddings/{weddingId}": {
+      "schema": { "$ref": "#/entities/Wedding" },
+      "description": "Wedding plans."
+    },
+    "/budgetItems/{itemId}": {
+      "schema": { "$ref": "#/entities/BudgetItem" },
+      "description": "Budget items for weddings."
+    },
+    "/savings/{savingId}": {
+      "schema": { "$ref": "#/entities/Saving" },
+      "description": "Savings records for weddings."
+    },
+    "/vendors/{vendorId}": {
+      "schema": { "$ref": "#/entities/Vendor" },
+      "description": "Vendors for weddings."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Calendar events for weddings."
+    }
+  }
+}

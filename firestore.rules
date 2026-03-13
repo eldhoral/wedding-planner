@@ -1,0 +1,139 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    // Check if the user is part of the wedding
+    function isWeddingMember(weddingId) {
+      let wedding = get(/databases/$(database)/documents/weddings/$(weddingId));
+      return wedding != null && (wedding.data.createdBy == request.auth.uid || wedding.data.partnerId == request.auth.uid);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             (!('weddingId' in data) || (data.weddingId is string && data.weddingId.size() < 50));
+    }
+    
+    function isValidWedding(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.totalBudgetGoal is number && data.totalBudgetGoal >= 0 &&
+             data.createdAt is string &&
+             data.createdBy is string && data.createdBy == request.auth.uid &&
+             (!('date' in data) || (data.date is string && data.date.size() < 50)) &&
+             (!('partnerId' in data) || (data.partnerId is string && data.partnerId.size() < 50));
+    }
+    
+    function isValidBudgetItem(data) {
+      return data.weddingId is string && data.weddingId.size() > 0 &&
+             data.category is string && data.category in ["venue", "catering", "attire", "photography", "decor", "entertainment", "other"] &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.estimatedCost is number && data.estimatedCost >= 0 &&
+             (!('actualCost' in data) || (data.actualCost is number && data.actualCost >= 0)) &&
+             data.status is string && data.status in ["planned", "booked", "paid"] &&
+             (!('vendorId' in data) || (data.vendorId is string && data.vendorId.size() < 50)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+    
+    function isValidSaving(data) {
+      return data.weddingId is string && data.weddingId.size() > 0 &&
+             data.amount is number && data.amount > 0 &&
+             data.date is string && data.date.size() > 0 && data.date.size() < 50 &&
+             data.depositedBy is string && data.depositedBy.size() > 0 && data.depositedBy.size() < 100 &&
+             (!('note' in data) || (data.note is string && data.note.size() < 1000));
+    }
+    
+    function isValidVendor(data) {
+      return data.weddingId is string && data.weddingId.size() > 0 &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status is string && data.status in ["contacted", "meeting_set", "booked", "rejected"] &&
+             (!('contactName' in data) || (data.contactName is string && data.contactName.size() < 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 50)) &&
+             (!('email' in data) || (data.email is string && data.email.size() < 100)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidEvent(data) {
+      return data.weddingId is string && data.weddingId.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.date is string && data.date.size() > 0 && data.date.size() < 50 &&
+             data.type is string && data.type in ["appointment", "milestone", "task", "wedding_day"] &&
+             (!('description' in data) || (data.description is string && data.description.size() < 1000));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && hasRequiredFields(['name', 'email']) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if false; // Users cannot be deleted
+    }
+
+    match /weddings/{weddingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields(['name', 'totalBudgetGoal', 'createdAt', 'createdBy']) && isValidWedding(request.resource.data);
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid || 
+        resource.data.partnerId == request.auth.uid ||
+        (!('partnerId' in resource.data) && request.resource.data.partnerId == request.auth.uid)
+      ) && isValidWedding(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /budgetItems/{itemId} {
+      allow read: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+      allow create: if isAuthenticated() && hasRequiredFields(['weddingId', 'category', 'name', 'estimatedCost', 'status']) && isValidBudgetItem(request.resource.data) && isWeddingMember(request.resource.data.weddingId);
+      allow update: if isAuthenticated() && isWeddingMember(resource.data.weddingId) && isValidBudgetItem(request.resource.data) && request.resource.data.weddingId == resource.data.weddingId;
+      allow delete: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+    }
+
+    match /savings/{savingId} {
+      allow read: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+      allow create: if isAuthenticated() && hasRequiredFields(['weddingId', 'amount', 'date', 'depositedBy']) && isValidSaving(request.resource.data) && isWeddingMember(request.resource.data.weddingId);
+      allow update: if isAuthenticated() && isWeddingMember(resource.data.weddingId) && isValidSaving(request.resource.data) && request.resource.data.weddingId == resource.data.weddingId;
+      allow delete: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+      allow create: if isAuthenticated() && hasRequiredFields(['weddingId', 'category', 'name', 'status']) && isValidVendor(request.resource.data) && isWeddingMember(request.resource.data.weddingId);
+      allow update: if isAuthenticated() && isWeddingMember(resource.data.weddingId) && isValidVendor(request.resource.data) && request.resource.data.weddingId == resource.data.weddingId;
+      allow delete: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+    }
+
+    match /events/{eventId} {
+      allow read: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+      allow create: if isAuthenticated() && hasRequiredFields(['weddingId', 'title', 'date', 'type']) && isValidEvent(request.resource.data) && isWeddingMember(request.resource.data.weddingId);
+      allow update: if isAuthenticated() && isWeddingMember(resource.data.weddingId) && isValidEvent(request.resource.data) && request.resource.data.weddingId == resource.data.weddingId;
+      allow delete: if isAuthenticated() && isWeddingMember(resource.data.weddingId);
+    }
+  }
+}
